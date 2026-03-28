@@ -642,7 +642,7 @@ REACT_APP_API_URL=http://127.0.0.1:8000
 
 ## 👥 Team
 
-**Money Mentor** - Finalist Level Hackathon Project
+**Money Mentor**
 - Full Stack Development: Python (Backend) + React (Frontend)
 - AI Integration: OpenAI GPT-3.5-turbo
 - Design: Dark theme with glassmorphism UI
