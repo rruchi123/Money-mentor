@@ -640,23 +640,6 @@ REACT_APP_API_URL=http://127.0.0.1:8000
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please follow:
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/new-feature`
-3. Commit changes: `git commit -m "Add new feature"`
-4. Push branch: `git push origin feature/new-feature`
-5. Open Pull Request
-
----
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
----
-
 ## 👥 Team
 
 **Money Mentor** - Finalist Level Hackathon Project
