@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from services.openai_service import ask_ai
+from services.gemini_service import ask_ai
 from typing import Optional
 from pydantic import BaseModel
 
