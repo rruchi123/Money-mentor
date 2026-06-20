@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import openai
+from dotenv import load_dotenv
+from services.openai_service import ask_ai
 from typing import Optional
 from pydantic import BaseModel
 
@@ -33,10 +34,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize OpenAI client (optional - will fallback to mock responses if not configured)
-openai_client = None
-if os.getenv("OPENAI_API_KEY"):
-    openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Load environment variables
+load_dotenv()
+
 
 
 
@@ -76,53 +76,54 @@ def chat_with_ai(request: ChatRequest, current_user=Depends(get_current_user)):
     user_data = request.user_data or {}
 
     # System prompt for financial AI assistant
-    system_prompt = """
-    You are Money Mentor AI, a sophisticated financial assistant. You help users with:
-    - Investment planning and strategy
-    - Tax optimization and savings
-    - Risk management
-    - Retirement planning
-    - Budgeting and expense management
-    - Financial goal setting
-    - Market analysis and trends
+    system_prompt = """You are Money Mentor AI, a sophisticated financial advisor and assistant. You help users with:
+- Investment planning and strategy (SIP, mutual funds, stocks, bonds, commodities)
+- Tax optimization and savings (Section 80C, HRA, LTA, etc.)
+- Risk management and insurance
+- Retirement and pension planning
+- Budgeting and expense management
+- Financial goal setting and tracking
+- Market analysis and trends
+- Emergency fund planning
+- Cryptocurrency and alternative investments (when relevant)
 
-    Always provide accurate, helpful, and personalized financial advice.
-    Be conversational but professional.
-    If you don't have specific user data, give general advice.
-    Always recommend consulting financial professionals for complex decisions.
-    """
+Your behavior:
+- Provide accurate, helpful, and personalized financial advice based on user context
+- Be conversational, friendly but professional
+- Ask clarifying questions if needed
+- If you don't have specific user data, give general advice based on Indian financial standards
+- Always recommend consulting certified financial professionals for complex decisions
+- Use Indian currency (₹) and Indian financial instruments when applicable
+- Keep responses concise but informative (max 250 words)
+- Use bullet points for multiple items
+- Avoid discussing personal loans excessively
+- Provide actionable advice with specific numbers when possible"""
 
     # Add user context if available
     if user_data:
         context = f"""
-        User Financial Context:
-        - Monthly Income: ₹{user_data.get('income', 'Not provided')}
-        - Monthly Expenses: ₹{user_data.get('expenses', 'Not provided')}
-        - Current Savings: ₹{user_data.get('savings', 'Not provided')}
-        - Risk Profile: {user_data.get('risk_profile', 'Not provided')}
-        - Age: {user_data.get('age', 'Not provided')}
-        """
+Current User Financial Context:
+- Monthly Income: ₹{user_data.get('income', 'Not provided')}
+- Monthly Expenses: ₹{user_data.get('expenses', 'Not provided')}
+- Current Savings: ₹{user_data.get('savings', 'Not provided')}
+- Risk Profile: {user_data.get('risk_profile', 'Not provided')}
+- Age: {user_data.get('age', 'Not provided')}"""
         system_prompt += context
 
     try:
-        if openai_client:
-            # Use OpenAI API for intelligent responses
-            response = openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
-                max_tokens=500,
-                temperature=0.7
-            )
-            ai_response = response.choices[0].message.content.strip()
-        else:
-            # Fallback to rule-based responses when API key not configured
-            ai_response = generate_financial_response(user_message, user_data)
+       print("[Money Mentor] Using Gemini AI")
+
+       ai_response = ask_ai(
+        system_prompt=system_prompt,
+        user_prompt=user_message
+       )
 
     except Exception as e:
-        # Fallback on any error
+        import traceback
+
+        print(f"[Money Mentor] Gemini API Error: {type(e).__name__}: {e}")
+        print(traceback.format_exc())
+
         ai_response = generate_financial_response(user_message, user_data)
 
     return {"response": ai_response}

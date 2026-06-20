@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import InputForm from "../components/InputForm";
 import ResultDisplay from "../components/ResultDisplay";
 import Charts from "../components/Charts";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { chatWithAI } from "../services/api";
 
 function Dashboard({ setIsLoggedIn, onBackToHome, setAnalysisData }) {
   const [result, setResult] = useState(null);
@@ -110,30 +112,15 @@ function Dashboard({ setIsLoggedIn, onBackToHome, setAnalysisData }) {
     setChatMessages(prev => [...prev, { type: 'user', text: chatInput }]);
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token,
-        },
-        body: JSON.stringify({
-          message: chatInput,
-          user_data: result ? {
-            income: result.sip * 5, // Approximate income from SIP
-            expenses: result.sip * 3, // Approximate expenses
-            savings: result.emergency_fund || 0,
-            risk_profile: 'medium', // Default
-            age: 30 // Default
-          } : null
-        }),
-      });
+      const response = await chatWithAI(chatInput, result ? {
+        income: result.sip * 5, // Approximate income from SIP
+        expenses: result.sip * 3, // Approximate expenses
+        savings: result.emergency_fund || 0,
+        risk_profile: result.risk_profile || 'medium',
+        age: 30 // Default
+      } : null);
 
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
-      }
-
-      const data = await response.json();
+      const data = response.data;
       setChatMessages(prev => [...prev, { type: 'ai', text: data.response }]);
     } catch (error) {
       console.error('Chat error:', error);
@@ -257,28 +244,28 @@ function Dashboard({ setIsLoggedIn, onBackToHome, setAnalysisData }) {
       <div className="bg-black/30 backdrop-blur-md border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-          <div className="flex items-center py-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-violet-500 rounded-lg flex items-center justify-center shadow-lg">
-                <span className="text-black text-lg font-bold">💰</span>
+            <div className="flex items-center py-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-violet-500 rounded-lg flex items-center justify-center shadow-lg">
+                  <span className="text-black text-lg font-bold">💰</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white">Money Mentor Dashboard</h1>
               </div>
-              <h1 className="text-2xl font-bold text-white">Money Mentor Dashboard</h1>
+              <div className="flex space-x-4 ml-8">
+                <button
+                  onClick={onBackToHome}
+                  className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium shadow-sm"
+                >
+                  Home
+                </button>
+                <button
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium shadow-sm"
+                  onClick={logout}
+                >
+                  Logout
+                </button>
+              </div>
             </div>
-            <div className="flex space-x-4 ml-8">
-              <button
-                onClick={onBackToHome}
-                className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium shadow-sm"
-              >
-                Home
-              </button>
-              <button
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium shadow-sm"
-                onClick={logout}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
           </div>
         </div>
       </div>
@@ -444,16 +431,21 @@ function Dashboard({ setIsLoggedIn, onBackToHome, setAnalysisData }) {
               Personal Finance AI
             </h3>
             <div className="space-y-3">
-              <div className="bg-white/5 p-4 rounded-lg h-40 flex flex-col">
+              <div className="bg-white/5 p-4 rounded-lg h-80 flex flex-col">
                 <div className="flex-1 overflow-y-auto mb-2 space-y-2">
-                  {chatMessages.slice(-3).map((msg, idx) => (
+                  {chatMessages.map((msg, idx) => (
                     <div key={idx} className="text-sm">
                       <span className={`font-medium ${msg.type === 'ai' ? 'text-cyan-400' : 'text-purple-400'}`}>
                         {msg.type === 'ai' ? 'AI:' : 'You:'}
                       </span>
-                      <span className={msg.type === 'ai' ? 'text-sky-200' : 'text-white'}>
-                        {' ' + msg.text}
-                      </span>
+                      <div
+                        className={`prose prose-sm max-w-none ${msg.type === "ai" ? "text-sky-200" : "text-white"
+                          } prose-headings:text-white prose-strong:text-white prose-li:text-sky-200 prose-p:text-sky-200`}
+                      >
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      </div>
+
+
                     </div>
                   ))}
                 </div>
@@ -518,81 +510,81 @@ function Dashboard({ setIsLoggedIn, onBackToHome, setAnalysisData }) {
 
         {/* Monthly Plan */}
         {result && (
-        <div className="bg-white/10 backdrop-blur-md bg-clip-padding border border-white/20 p-6 rounded-xl shadow-2xl mt-8">
-          <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
-            <span className="mr-2">🗓️</span>
-            Monthly SIP Projection
-          </h2>
-          <p className="text-sky-100 mb-4">
-            Estimate your month-wise SIP progress based on your computed SIP (resulting from analysis) and a customized growth model.
-          </p>
+          <div className="bg-white/10 backdrop-blur-md bg-clip-padding border border-white/20 p-6 rounded-xl shadow-2xl mt-8">
+            <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
+              <span className="mr-2">🗓️</span>
+              Monthly SIP Projection
+            </h2>
+            <p className="text-sky-100 mb-4">
+              Estimate your month-wise SIP progress based on your computed SIP (resulting from analysis) and a customized growth model.
+            </p>
 
-          <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <div className="space-y-2">
-              <p className="text-sky-200">Growth Rate: {growthRate}% monthly</p>
-              <input
-                type="range"
-                min="0"
-                max="10"
-                step="0.5"
-                value={growthRate}
-                onChange={(e) => setGrowthRate(Number(e.target.value))}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <p className="text-sky-200">Months: {monthsCount}</p>
-              <input
-                type="range"
-                min="6"
-                max="24"
-                step="1"
-                value={monthsCount}
-                onChange={(e) => setMonthsCount(Number(e.target.value))}
-                className="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <p className="text-sky-200">Round values to nearest 100</p>
-              <label className="inline-flex items-center gap-2">
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+              <div className="space-y-2">
+                <p className="text-sky-200">Growth Rate: {growthRate}% monthly</p>
                 <input
-                  type="checkbox"
-                  checked={roundPlan}
-                  onChange={(e) => setRoundPlan(e.target.checked)}
-                  className="form-checkbox h-5 w-5 text-cyan-500"
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value={growthRate}
+                  onChange={(e) => setGrowthRate(Number(e.target.value))}
+                  className="w-full"
                 />
-                <span className="text-white">Enabled</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <p className="text-sky-200 text-sm mb-2">Graphical trend preview</p>
-            <div className="h-28 bg-black/10 rounded-lg p-3 overflow-x-auto">
-              <div className="flex items-end h-full gap-2">
-                {monthlyPlan.map((item, index) => {
-                  const maxAmount = Math.max(...monthlyPlan.map((d) => d.amount));
-                  const height = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 5;
-                  return (
-                    <div key={index} className="flex flex-col items-center justify-end h-full w-8">
-                      <div className="w-full bg-cyan-400 rounded-t" style={{ height: `${Math.max(height, 8)}%` }}></div>
-                      <span className="text-xs text-sky-100 mt-1">{item.month}</span>
-                    </div>
-                  );
-                })}
+              </div>
+              <div className="space-y-2">
+                <p className="text-sky-200">Months: {monthsCount}</p>
+                <input
+                  type="range"
+                  min="6"
+                  max="24"
+                  step="1"
+                  value={monthsCount}
+                  onChange={(e) => setMonthsCount(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sky-200">Round values to nearest 100</p>
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={roundPlan}
+                    onChange={(e) => setRoundPlan(e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-cyan-500"
+                  />
+                  <span className="text-white">Enabled</span>
+                </label>
               </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {monthlyPlan.map((item, index) => (
-              <div key={index} className="bg-white/5 p-4 rounded-lg border border-white/10">
-                <p className="text-sky-200 text-sm">{item.month}</p>
-                <p className="text-white font-bold text-lg">₹{item.amount.toLocaleString()}</p>
+            <div className="mb-6">
+              <p className="text-sky-200 text-sm mb-2">Graphical trend preview</p>
+              <div className="h-28 bg-black/10 rounded-lg p-3 overflow-x-auto">
+                <div className="flex items-end h-full gap-2">
+                  {monthlyPlan.map((item, index) => {
+                    const maxAmount = Math.max(...monthlyPlan.map((d) => d.amount));
+                    const height = maxAmount > 0 ? (item.amount / maxAmount) * 100 : 5;
+                    return (
+                      <div key={index} className="flex flex-col items-center justify-end h-full w-8">
+                        <div className="w-full bg-cyan-400 rounded-t" style={{ height: `${Math.max(height, 8)}%` }}></div>
+                        <span className="text-xs text-sky-100 mt-1">{item.month}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            ))}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {monthlyPlan.map((item, index) => (
+                <div key={index} className="bg-white/5 p-4 rounded-lg border border-white/10">
+                  <p className="text-sky-200 text-sm">{item.month}</p>
+                  <p className="text-white font-bold text-lg">₹{item.amount.toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
         )}
         {!result && (
           <div className="bg-white/10 backdrop-blur-md bg-clip-padding border border-white/20 p-6 rounded-xl shadow-2xl mt-8">

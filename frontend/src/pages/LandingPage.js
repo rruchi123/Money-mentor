@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import ReactMarkdown from "react-markdown";
+
+const API = process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
 
 const LandingPage = ({ onGetStarted, analysisData, onNavigateFeatures, onNavigatePricing }) => {
   const [chatMessages, setChatMessages] = useState([
@@ -47,27 +50,61 @@ const LandingPage = ({ onGetStarted, analysisData, onNavigateFeatures, onNavigat
 
   const metrics = getMetrics();
 
-  const handleChatSubmit = (e) => {
+  const handleChatSubmit = async (e) => {
     e.preventDefault();
+
     if (!chatInput.trim()) return;
 
-    // Add user message
-    setChatMessages(prev => [...prev, { type: 'user', text: chatInput }]);
+    const userMessage = chatInput;
 
-    // Simulate AI response
-    setTimeout(() => {
-      const responses = [
-        "Based on your financial profile, I recommend increasing your emergency fund to 6 months of expenses.",
-        "Consider diversifying your portfolio with some international funds for better risk management.",
-        "Your current savings rate is excellent! Keep up the good work.",
-        "For tax optimization, you might benefit from investing in ELSS funds under Section 80C.",
-        "I notice your debt-to-income ratio is healthy. Focus on building long-term wealth now."
-      ];
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      setChatMessages(prev => [...prev, { type: 'ai', text: randomResponse }]);
-    }, 1000);
+    // Show user's message immediately
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        type: "user",
+        text: userMessage,
+      },
+    ]);
 
-    setChatInput('');
+    setChatInput("");
+
+    try {
+      const response = await fetch(`${API}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          user_data: analysisData || {},
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get AI response");
+      }
+
+      const data = await response.json();
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          type: "ai",
+          text: data.response,
+        },
+      ]);
+    } catch (error) {
+      console.error(error);
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          type: "ai",
+          text: "Sorry! I couldn't connect to the AI assistant.",
+        },
+      ]);
+    }
   };
 
   return (
@@ -117,8 +154,8 @@ const LandingPage = ({ onGetStarted, analysisData, onNavigateFeatures, onNavigat
                 {analysisData ? `Your ${metrics.strategy} Plan is Ready` : "Take control of your money the smart way"}
               </h2>
               <p className="mt-6 text-lg text-sky-100 max-w-xl">
-                {analysisData 
-                  ? `Invest ₹${analysisData.sip?.toLocaleString("en-IN") || "0"} monthly, save ₹${analysisData.tax_saved?.toLocaleString("en-IN") || "0"} in taxes, and build an emergency fund of ₹${analysisData.emergency_fund?.toLocaleString("en-IN") || "0"}.` 
+                {analysisData
+                  ? `Invest ₹${analysisData.sip?.toLocaleString("en-IN") || "0"} monthly, save ₹${analysisData.tax_saved?.toLocaleString("en-IN") || "0"} in taxes, and build an emergency fund of ₹${analysisData.emergency_fund?.toLocaleString("en-IN") || "0"}.`
                   : "Build and execute a data-backed plan for savings, investment, risk and taxes with a smooth dashboard and industry-grade insights."}
               </p>
 
@@ -219,21 +256,21 @@ const LandingPage = ({ onGetStarted, analysisData, onNavigateFeatures, onNavigat
                       <p className="text-sky-200 text-sm font-medium">Equity Allocation</p>
                       <p className="text-white text-lg font-bold">65%</p>
                       <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
-                        <div className="bg-green-400 h-2 rounded-full" style={{width: '65%'}}></div>
+                        <div className="bg-green-400 h-2 rounded-full" style={{ width: '65%' }}></div>
                       </div>
                     </div>
                     <div className="bg-white/5 p-3 rounded-lg">
                       <p className="text-sky-200 text-sm font-medium">Debt Allocation</p>
                       <p className="text-white text-lg font-bold">25%</p>
                       <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
-                        <div className="bg-blue-400 h-2 rounded-full" style={{width: '25%'}}></div>
+                        <div className="bg-blue-400 h-2 rounded-full" style={{ width: '25%' }}></div>
                       </div>
                     </div>
                     <div className="bg-white/5 p-3 rounded-lg">
                       <p className="text-sky-200 text-sm font-medium">Gold Allocation</p>
                       <p className="text-white text-lg font-bold">10%</p>
                       <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
-                        <div className="bg-yellow-400 h-2 rounded-full" style={{width: '10%'}}></div>
+                        <div className="bg-yellow-400 h-2 rounded-full" style={{ width: '10%' }}></div>
                       </div>
                     </div>
                   </>
@@ -288,16 +325,23 @@ const LandingPage = ({ onGetStarted, analysisData, onNavigateFeatures, onNavigat
             <div className="p-6 rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 shadow-lg">
               <div className="text-5xl mb-3">🤖</div>
               <h4 className="text-xl font-semibold mb-3">Personal Finance AI</h4>
-              <div className="bg-white/5 p-3 rounded-lg h-32 flex flex-col">
+              <div className="bg-white/5 p-3 rounded-lg h-64 flex flex-col">
                 <div className="flex-1 overflow-y-auto mb-2 space-y-2">
-                  {chatMessages.slice(-3).map((msg, idx) => (
+                  {chatMessages.map((msg, idx) => (
                     <div key={idx} className="text-xs">
-                      <span className={`font-medium ${msg.type === 'ai' ? 'text-cyan-400' : 'text-purple-400'}`}>
-                        {msg.type === 'ai' ? 'AI:' : 'You:'}
+                      <span
+                        className={`font-medium ${msg.type === "ai" ? "text-cyan-400" : "text-purple-400"
+                          }`}
+                      >
+                        {msg.type === "ai" ? "AI:" : "You:"}
                       </span>
-                      <span className={msg.type === 'ai' ? 'text-sky-200' : 'text-white'}>
-                        {' ' + msg.text}
-                      </span>
+
+                      <div
+                        className={`prose prose-sm max-w-none ${msg.type === "ai" ? "text-sky-200" : "text-white"
+                          } prose-headings:text-white prose-strong:text-white prose-li:text-sky-200 prose-p:text-sky-200`}
+                      >
+                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                      </div>
                     </div>
                   ))}
                 </div>
