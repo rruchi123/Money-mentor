@@ -156,6 +156,4 @@ Money-Mentor
 
 ---
 
-## Author
 
-**Ruchi Raj**
